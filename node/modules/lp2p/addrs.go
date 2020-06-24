@@ -100,12 +100,14 @@ func listenAddresses(addresses []string) ([]ma.Multiaddr, error) {
 }
 
 func StartListening(addresses []string) func(host host.Host) error {
+	dp2plog.L.Debug("prepare StartListening")
 	return func(host host.Host) error {
 		listenAddrs, err := listenAddresses(addresses)
 		if err != nil {
 			return err
 		}
 
+		dp2plog.L.Debug("do StartListening")
 		// Actually start listening:
 		if err := host.Network().Listen(listenAddrs...); err != nil {
 			return err
