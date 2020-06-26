@@ -1,6 +1,7 @@
 package impl
 
 import (
+	x_ctrl "github.com/filecoin-project/lotus/node/impl/x-ctrl"
 	logging "github.com/ipfs/go-log/v2"
 
 	"github.com/filecoin-project/lotus/api"
@@ -24,6 +25,7 @@ type FullNodeAPI struct {
 	full.MsigAPI
 	full.WalletAPI
 	full.SyncAPI
+	x_ctrl.XCtrl
 }
 
 var _ api.FullNode = &FullNodeAPI{}
