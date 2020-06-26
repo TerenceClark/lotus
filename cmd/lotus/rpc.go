@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"github.com/filecoin-project/lotus/tools/dlog/drpclog"
+	"go.uber.org/zap"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
@@ -84,7 +86,9 @@ func serveRPC(a api.FullNode, stop node.StopFunc, addr multiaddr.Multiaddr, shut
 }
 
 func handleImport(a *impl.FullNodeAPI) func(w http.ResponseWriter, r *http.Request) {
+	drpclog.L.Debug("init handleImport")
 	return func(w http.ResponseWriter, r *http.Request) {
+		drpclog.L.Debug("handle api call", zap.String("remote addr", r.RemoteAddr))
 		if r.Method != "PUT" {
 			w.WriteHeader(404)
 			return
