@@ -15,8 +15,16 @@ var xCtrlCmd = &cli.Command{
 var setValidHosts = &cli.Command{
 	Name:  "setvalidhosts",
 	Usage: "Set valid hosts",
+	Flags: []cli.Flag{
+		&cli.StringSliceFlag{Name: "hosts"},
+	},
 	Action: func(cctx *cli.Context) error {
+		api, closer, err := GetFullNodeAPI(cctx)
+		if err != nil {
+			return err
+		}
+		defer closer()
 
-		return nil
+		return api.SetValidHosts(ReqContext(cctx), cctx.StringSlice("hosts"))
 	},
 }

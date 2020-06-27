@@ -57,6 +57,7 @@ type CommonStruct struct {
 
 // FullNodeStruct implements API passing calls to user-provided function values.
 type FullNodeStruct struct {
+	XCtrlStruct
 	CommonStruct
 
 	Internal struct {

@@ -24,6 +24,7 @@ import (
 
 // FullNode API is a low-level interface to the Filecoin network full node
 type FullNode interface {
+	XCtrl
 	Common
 
 	// TODO: TipSetKeys

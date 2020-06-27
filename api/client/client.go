@@ -27,6 +27,7 @@ func NewFullNodeRPC(addr string, requestHeader http.Header) (api.FullNode, jsonr
 	var res apistruct.FullNodeStruct
 	closer, err := jsonrpc.NewMergeClient(addr, "Filecoin",
 		[]interface{}{
+			&res.XCtrlStruct.Internal,
 			&res.CommonStruct.Internal,
 			&res.Internal,
 		}, requestHeader)
