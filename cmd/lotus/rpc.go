@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/filecoin-project/lotus/tools/dlog/drpclog"
+	"github.com/filecoin-project/lotus/tools/util"
 	"go.uber.org/zap"
 	"net/http"
 	_ "net/http/pprof"
@@ -36,7 +37,15 @@ func serveRPC(a api.FullNode, stop node.StopFunc, addr multiaddr.Multiaddr, shut
 
 	ah := &auth.Handler{
 		Verify: a.AuthVerify,
-		Next:   rpcServer.ServeHTTP,
+		Next: func(resp http.ResponseWriter, req *http.Request) {
+			rAddr := util.RemoteIPFromReqAddr(req.RemoteAddr)
+			if err := a.HostVerify(req.Context(), rAddr); err != nil {
+				log.Warnf("Host Verification failed: %s", rAddr)
+				resp.WriteHeader(401)
+				return
+			}
+			rpcServer.ServeHTTP(resp, req)
+		},
 	}
 
 	http.Handle("/rpc/v0", ah)
