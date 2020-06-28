@@ -532,6 +532,11 @@ var clientQueryAskCmd = &cli.Command{
 			}
 
 			pid = peer.ID(mi.PeerId)
+			fmt.Printf("Peer ID: %s\n", pid.String())
+			for _, mAddr := range mi.Multiaddrs {
+				fmt.Printf("LibP2P Addr: %s\n", string(mAddr))
+			}
+			fmt.Printf("Owner: %s\n", mi.Owner.String())
 		}
 
 		ask, err := api.ClientQueryAsk(ctx, pid, maddr)

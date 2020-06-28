@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/filecoin-project/lotus/tools/dlog/dstoragelog"
+	"go.uber.org/zap"
 
 	"github.com/filecoin-project/go-fil-markets/pieceio"
 	basicnode "github.com/ipld/go-ipld-prime/node/basic"
@@ -100,10 +102,13 @@ func (a *API) ClientStartDeal(ctx context.Context, params *api.StartDealParams) 
 		return nil, xerrors.Errorf("bad sector size: %w", err)
 	}
 
-	if uint64(params.Data.PieceSize.Padded()) > uint64(mi.SectorSize) {
+	dataPieceSize := uint64(params.Data.PieceSize.Padded())
+	if dataPieceSize > uint64(mi.SectorSize) {
 		return nil, xerrors.New("data doesn't fit in a sector")
 	}
+	dstoragelog.L.Debug("after check data piece size", zap.Uint64("dataPieceSize", dataPieceSize))
 
+	// 获取具体存储的信息
 	providerInfo := utils.NewStorageProviderInfo(params.Miner, mi.Worker, mi.SectorSize, peer.ID(mi.PeerId))
 
 	dealStart := params.DealStartEpoch
@@ -199,6 +204,7 @@ func (a *API) ClientFindData(ctx context.Context, root cid.Cid) ([]api.QueryOffe
 	if err != nil {
 		return nil, err
 	}
+	dstoragelog.L.Debug("ClientFindData", zap.Int("peers len", len(peers)))
 
 	out := make([]api.QueryOffer, len(peers))
 	for k, p := range peers {
@@ -248,7 +254,8 @@ func (a *API) makeRetrievalQuery(ctx context.Context, rp rm.RetrievalPeer, paylo
 }
 
 func (a *API) ClientImport(ctx context.Context, ref api.FileRef) (cid.Cid, error) {
-
+	// 这里在本地node节点处执行的，因此client给到daemon的是文件路径
+	//fmt.Println("client import data:", ref)
 	bufferedDS := ipld.NewBufferedDAG(ctx, a.LocalDAG)
 	nd, err := a.clientImport(ref, bufferedDS)
 

@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/filecoin-project/lotus/tools/dlog/dstoragelog"
+	"go.uber.org/zap"
 	"strconv"
 
 	cid "github.com/ipfs/go-cid"
@@ -78,15 +80,18 @@ func (a *StateAPI) StateMinerProvingSet(ctx context.Context, addr address.Addres
 }
 
 func (a *StateAPI) StateMinerInfo(ctx context.Context, actor address.Address, tsk types.TipSetKey) (api.MinerInfo, error) {
+	// tsk为empty的话就是拿最近的TipSet
 	ts, err := a.Chain.GetTipSetFromKey(tsk)
 	if err != nil {
 		return api.MinerInfo{}, xerrors.Errorf("loading tipset %s: %w", tsk, err)
 	}
 
+	// 从state manager中取出miner的信息
 	mi, err := stmgr.StateMinerInfo(ctx, a.StateManager, ts, actor)
 	if err != nil {
 		return api.MinerInfo{}, err
 	}
+	dstoragelog.L.Debug("get miner info", zap.String("ts height", ts.Height().String()), zap.String("actor", actor.String()))
 	return api.NewApiMinerInfo(mi), nil
 }
 
