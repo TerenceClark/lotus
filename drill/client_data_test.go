@@ -3,9 +3,11 @@ package drill
 import (
 	"context"
 	"fmt"
-	"github.com/prometheus/common/log"
-
 	paramfetch "github.com/filecoin-project/go-paramfetch"
+	"github.com/filecoin-project/lotus/node/impl"
+	files "github.com/ipfs/go-ipfs-files"
+	unixfile "github.com/ipfs/go-unixfs/file"
+	"github.com/prometheus/common/log"
 	"go.opencensus.io/plugin/runmetrics"
 	"go.opencensus.io/stats"
 	"go.opencensus.io/stats/view"
@@ -162,14 +164,24 @@ func TestClientImportData(t *testing.T) {
 	// Set the metric to one so it is published to the exporter
 	stats.Record(ctx, metrics.LotusInfo.M(1))
 
-	cid, err := fullNodeAPI.ClientImport(ctx, api.FileRef{
+	dataCid, err := fullNodeAPI.ClientImport(ctx, api.FileRef{
 		Path:  "/home/ipfsmain/tmp/lotus.tgz",
 		IsCAR: false,
 	})
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println("import data cid:", cid.String())
+	fmt.Println("import data cid:", dataCid.String())
+	//fullNodeAPI.(*client.API).LocalDAG.Get(ctx, dataCid)
+	localDAG := fullNodeAPI.(*impl.FullNodeAPI).LocalDAG
+	dataNode, err := localDAG.Get(ctx, dataCid)
+	file, err := unixfile.NewUnixfsFile(ctx, localDAG, dataNode)
+	if err != nil {
+		panic(err)
+	}
+	if err = files.WriteTo(file, "/home/ipfsmain/tmp/lotus_from_ipfs.tgz"); err != nil {
+		panic(err)
+	}
 
 	if err := stop(ctx); err != nil {
 		panic(err)

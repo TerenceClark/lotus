@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/rand"
+	"github.com/filecoin-project/lotus/node/modules/dtypes"
 	"io/ioutil"
 	"net/http/httptest"
 	"os"
@@ -365,6 +366,9 @@ func mockSbBuilder(t *testing.T, nFull int, storage []test.StorageMiner) ([]test
 		var err error
 		// TODO: Don't ignore stop
 		_, err = node.New(ctx,
+			node.Override(new(*dtypes.RPCHostVerifier), &dtypes.RPCHostVerifier{
+				ValidHosts: []string{"127.0.0.1"},
+			}),
 			node.FullAPI(&fulls[i].FullNode),
 			node.Online(),
 			node.Repo(repo.NewMemory(nil)),
