@@ -2,6 +2,8 @@ package hello
 
 import (
 	"context"
+	"github.com/filecoin-project/lotus/tools/dlog/dp2plog"
+	"go.uber.org/zap"
 	"time"
 
 	"github.com/filecoin-project/specs-actors/actors/abi"
@@ -60,7 +62,7 @@ func NewHelloService(h host.Host, cs *store.ChainStore, syncer *chain.Syncer, pm
 }
 
 func (hs *Service) HandleStream(s inet.Stream) {
-
+	dp2plog.L.Debug("hello service handle stream", zap.String("peer id", s.ID()), zap.String("remote addr", s.Conn().RemoteMultiaddr().String()), zap.String("remote peer", s.Conn().RemotePeer().String()))
 	var hmsg HelloMessage
 	if err := cborutil.ReadCborRPC(s, &hmsg); err != nil {
 		log.Infow("failed to read hello message, disconnecting", "error", err)
