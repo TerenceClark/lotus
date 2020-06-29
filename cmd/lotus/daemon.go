@@ -210,7 +210,7 @@ var DaemonCmd = &cli.Command{
 
 		stop, err := node.New(ctx,
 			// todo load config from file。还有就是这里用不了指针
-			node.Override(new(dtypes.RPCHostVerifier), dtypes.RPCHostVerifier{
+			node.Override(new(*dtypes.RPCHostVerifier), &dtypes.RPCHostVerifier{
 				ValidHosts: []string{"127.0.0.1"},
 			}),
 			node.FullAPI(&api),

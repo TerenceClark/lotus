@@ -12,7 +12,7 @@ import (
 type XCtrl struct {
 	fx.In
 
-	dtypes.RPCHostVerifier
+	*dtypes.RPCHostVerifier
 }
 
 func (a *XCtrl) SetValidHosts(ctx context.Context, hosts []string) error {
