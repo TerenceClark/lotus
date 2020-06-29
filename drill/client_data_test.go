@@ -165,7 +165,7 @@ func TestClientImportData(t *testing.T) {
 	stats.Record(ctx, metrics.LotusInfo.M(1))
 
 	dataCid, err := fullNodeAPI.ClientImport(ctx, api.FileRef{
-		Path:  "/home/ipfsmain/tmp/lotus.tgz",
+		Path:  "/home/ipfsmain/tmp/Git-2.27.0-64-bit.exe.1",
 		IsCAR: false,
 	})
 	if err != nil {
@@ -179,7 +179,7 @@ func TestClientImportData(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	if err = files.WriteTo(file, "/home/ipfsmain/tmp/lotus_from_ipfs.tgz"); err != nil {
+	if err = files.WriteTo(file, "/home/ipfsmain/tmp/Git-2.27.0-64-bit.exe.1_from_ipfs.tgz"); err != nil {
 		panic(err)
 	}
 
