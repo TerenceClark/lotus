@@ -5,6 +5,7 @@ import (
 	"fmt"
 	paramfetch "github.com/filecoin-project/go-paramfetch"
 	"github.com/filecoin-project/lotus/node/impl"
+	"github.com/ipfs/go-cid"
 	files "github.com/ipfs/go-ipfs-files"
 	unixfile "github.com/ipfs/go-unixfs/file"
 	"github.com/prometheus/common/log"
@@ -164,14 +165,19 @@ func TestClientImportData(t *testing.T) {
 	// Set the metric to one so it is published to the exporter
 	stats.Record(ctx, metrics.LotusInfo.M(1))
 
-	dataCid, err := fullNodeAPI.ClientImport(ctx, api.FileRef{
-		Path:  "/home/ipfsmain/tmp/Git-2.27.0-64-bit.exe.1",
-		IsCAR: false,
-	})
+	//dataCid, err := fullNodeAPI.ClientImport(ctx, api.FileRef{
+	//	Path:  "/home/ipfsmain/tmp/Git-2.27.0-64-bit.exe.1",
+	//	IsCAR: false,
+	//})
+	//if err != nil {
+	//	panic(err)
+	//}
+	//fmt.Println("import data cid:", dataCid.String())
+
+	dataCid, err := cid.Parse("QmZ8dRwcRQWPPcFkud4rF19bVVSdxkm3TurkARJJWkmQYP")
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println("import data cid:", dataCid.String())
 	//fullNodeAPI.(*client.API).LocalDAG.Get(ctx, dataCid)
 	localDAG := fullNodeAPI.(*impl.FullNodeAPI).LocalDAG
 	dataNode, err := localDAG.Get(ctx, dataCid)
