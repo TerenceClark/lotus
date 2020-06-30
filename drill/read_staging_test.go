@@ -3,19 +3,14 @@ package drill
 import (
 	"context"
 	"fmt"
-	paramfetch "github.com/filecoin-project/go-paramfetch"
 	"github.com/filecoin-project/lotus/api"
-	"github.com/filecoin-project/lotus/build"
-	"github.com/filecoin-project/lotus/metrics"
+	lcli "github.com/filecoin-project/lotus/cli"
 	"github.com/filecoin-project/lotus/node"
 	"github.com/filecoin-project/lotus/node/modules"
 	"github.com/filecoin-project/lotus/node/modules/dtypes"
 	"github.com/filecoin-project/lotus/node/repo"
-	"github.com/prometheus/common/log"
-	"go.opencensus.io/plugin/runmetrics"
-	"go.opencensus.io/stats"
-	"go.opencensus.io/stats/view"
-	"reflect"
+	"github.com/urfave/cli/v2"
+	"os"
 	"testing"
 )
 
@@ -51,74 +46,64 @@ func TestReadStaging(t *testing.T) {
 }
 
 func TestReadStagingByDAG(t *testing.T) {
-	repoPath := "/home/ipfsmain/workspace/filecoin/lotus-dev-env/lotusstorage"
-	nodeType := repo.StorageMiner
-	err := runmetrics.Enable(runmetrics.RunMetricOptions{
-		EnableCPU:    true,
-		EnableMemory: true,
-	})
-	if err != nil {
-		panic(err)
+	app := cli.NewApp()
+	app.Flags = []cli.Flag{
+		&cli.StringFlag{Name: "test.v"},
+		&cli.StringFlag{Name: "repo", Value: "/home/ipfsmain/workspace/filecoin/lotus-dev-env/lotus-data"},
 	}
-	ctx := context.Background()
+	app.Action = func(c *cli.Context) error {
+		fmt.Println("exec action")
+		repoPath := "/home/ipfsmain/workspace/filecoin/lotus-dev-env/lotusstorage"
+		//nodeType := repo.StorageMiner
+		r, err := repo.NewFS(repoPath)
+		if err != nil {
+			panic(err)
+		}
 
-	r, err := repo.NewFS(repoPath)
-	if err != nil {
-		panic(fmt.Sprintf("opening fs repo: %s", err))
+		ok, err := r.Exists()
+		if err != nil {
+			panic(err)
+		}
+		if !ok {
+			panic(fmt.Sprintf("repo at '%s' is not initialized, run 'lotus-storage-miner init' to set it up", repoPath))
+		}
+		ctx := context.Background()
+
+		os.Setenv("LOTUS_PATH", "/home/ipfsmain/workspace/filecoin/lotus-dev-env/lotus-data")
+		os.Setenv("LOTUS_STORAGE_PATH", "/home/ipfsmain/workspace/filecoin/lotus-dev-env/lotusstorage")
+		os.Setenv("FIL_PROOFS_PARAMETER_CACHE", "/home/ipfsmain/workspace/filecoin/lotus-dev-env/filecoin-proof-parameters")
+		nodeApi, ncloser, err := lcli.GetFullNodeAPI(c)
+		if err != nil {
+			panic(err)
+		}
+		defer ncloser()
+
+
+		shutdownChan := make(chan struct{})
+
+		var minerapi api.StorageMiner
+		stop, err := node.New(ctx,
+			node.StorageMiner(&minerapi),
+			node.Override(new(dtypes.ShutdownChan), shutdownChan),
+			node.Online(),
+			node.Repo(r),
+
+			//node.ApplyIf(func(s *node.Settings) bool { return cctx.IsSet("api") },
+			//	node.Override(new(dtypes.APIEndpoint), func() (dtypes.APIEndpoint, error) {
+			//		return multiaddr.NewMultiaddr("/ip4/127.0.0.1/tcp/" + cctx.String("api"))
+			//	})),
+			node.Override(new(api.FullNode), nodeApi),
+			node.Override(node.ExecFunc, func() {
+				fmt.Println("==== call exec func")
+			}),
+		)
+		if err != nil {
+			panic(err)
+		}
+		if err = stop(ctx); err != nil {
+			panic(err)
+		}
+		return nil
 	}
-
-	if err := r.Init(nodeType); err != nil && err != repo.ErrRepoExists {
-		panic(fmt.Sprintf("repo init error: %s", err))
-	}
-
-	if err := paramfetch.GetParams(ctx, build.ParametersJSON(), 0); err != nil {
-		panic(fmt.Sprintf("fetching proof parameters: %s", err))
-	}
-
-	var genBytes []byte
-	genBytes = build.MaybeGenesis()
-
-	genesis := node.Options()
-	if len(genBytes) > 0 {
-		genesis = node.Override(new(modules.Genesis), modules.LoadGenesis(genBytes))
-	}
-
-	shutdownChan := make(chan struct{})
-
-	var fullNodeAPI api.FullNode
-
-	stop, err := node.New(ctx,
-		node.Override(new(*dtypes.RPCHostVerifier), &dtypes.RPCHostVerifier{
-			ValidHosts: []string{"127.0.0.1"},
-		}),
-		node.FullAPI(&fullNodeAPI),
-
-		node.Override(new(dtypes.Bootstrapper), dtypes.Bootstrapper(false)),
-		node.Override(new(dtypes.ShutdownChan), shutdownChan),
-		node.Online(),
-		node.Repo(r),
-		node.Override(node.ExecFunc, func(dag dtypes.StagingDAG) {
-				fmt.Println("----- got dag", reflect.TypeOf(dag))
-
-		}),
-
-		genesis,
-	)
-	if err != nil {
-		panic(fmt.Sprintf("initializing node: %s", err))
-	}
-
-	// Register all metric views
-	if err = view.Register(
-		metrics.DefaultViews...,
-	); err != nil {
-		log.Fatalf("Cannot register the view: %v", err)
-	}
-
-	// Set the metric to one so it is published to the exporter
-	stats.Record(ctx, metrics.LotusInfo.M(1))
-
-	if err := stop(ctx); err != nil {
-		panic(err)
-	}
+	app.Run(os.Args)
 }
