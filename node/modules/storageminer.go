@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/filecoin-project/lotus/tools/dlog/dstoragelog"
+	"go.uber.org/zap"
 	"net/http"
 
 	"github.com/ipfs/go-bitswap"
@@ -318,7 +320,10 @@ func NewStorageAsk(ctx helpers.MetricsCtx, fapi lapi.FullNode, ds dtypes.Metadat
 
 func StorageProvider(minerAddress dtypes.MinerAddress, ffiConfig *ffiwrapper.Config, storedAsk *storedask.StoredAsk, h host.Host, ds dtypes.MetadataDS, ibs dtypes.StagingBlockstore, r repo.LockedRepo, pieceStore dtypes.ProviderPieceStore, dataTransfer dtypes.ProviderDataTransfer, spn storagemarket.StorageProviderNode, isAcceptingFunc dtypes.AcceptingStorageDealsConfigFunc, blocklistFunc dtypes.StorageDealPieceCidBlocklistConfigFunc) (storagemarket.StorageProvider, error) {
 	net := smnet.NewFromLibp2pHost(h)
-	store, err := piecefilestore.NewLocalFileStore(piecefilestore.OsPath(r.Path()))
+	pieceFStorePath := piecefilestore.OsPath(r.Path())
+	dstoragelog.L.Debug("StorageProvider", zap.String("pieceFStorePath", string(pieceFStorePath)))
+	// todo 这个store跟pieceStore有什么区别
+	store, err := piecefilestore.NewLocalFileStore(pieceFStorePath)
 	if err != nil {
 		return nil, err
 	}
