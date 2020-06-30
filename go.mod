@@ -132,3 +132,5 @@ replace github.com/filecoin-project/filecoin-ffi => ./extern/filecoin-ffi
 replace github.com/filecoin-project/go-fil-markets => ../go-fil-markets
 
 replace github.com/filecoin-project/go-data-transfer => ../go-data-transfer
+
+replace github.com/filecoin-project/storage-fsm => ../storage-fsm
