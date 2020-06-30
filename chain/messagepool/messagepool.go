@@ -260,7 +260,7 @@ func (mp *MessagePool) repubLocal() {
 			}
 
 			if len(outputMsgs) != 0 {
-				log.Infow("republishing local messages", "n", len(outputMsgs))
+				log.Infow("republishing local messages", "n", len(outputMsgs), "msg0 method", outputMsgs[0].Message.Method.String())
 			}
 
 			for _, msg := range outputMsgs {

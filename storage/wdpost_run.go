@@ -113,6 +113,10 @@ func (s *WindowPoStScheduler) checkNextRecoveries(ctx context.Context, deadline 
 		return xerrors.Errorf("getting on-chain faults: %w", err)
 	}
 
+	if faults == nil {
+		log.Warn("checkNextRecoveries, faults is nil")
+		return nil
+	}
 	fc, err := faults.Count()
 	if err != nil {
 		return xerrors.Errorf("counting faulty sectors: %w", err)

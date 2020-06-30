@@ -272,6 +272,7 @@ func GetMinerFaults(ctx context.Context, sm *StateManager, ts *types.TipSet, mad
 	if err != nil {
 		return nil, xerrors.Errorf("(get faults) failed to load miner actor state: %w", err)
 	}
+	log.Info("GetMinerFaults", "miner owner", mas.Info.Owner.String())
 
 	return mas.Faults, nil
 }

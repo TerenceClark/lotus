@@ -122,6 +122,9 @@ const (
 
 	SetApiEndpointKey
 
+	// customer
+	ExecFunc
+
 	_nInvokes // keep this last
 )
 
