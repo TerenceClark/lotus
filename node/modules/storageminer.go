@@ -4,9 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/filecoin-project/lotus/tools/dlog/dminelog"
 	"github.com/filecoin-project/lotus/tools/dlog/dstoragelog"
 	"go.uber.org/zap"
 	"net/http"
+	"reflect"
 
 	"github.com/ipfs/go-bitswap"
 	"github.com/ipfs/go-bitswap/network"
@@ -137,6 +139,7 @@ func SectorIDCounter(ds dtypes.MetadataDS) sealing.SectorIDCounter {
 }
 
 func StorageMiner(mctx helpers.MetricsCtx, lc fx.Lifecycle, api lapi.FullNode, h host.Host, ds dtypes.MetadataDS, sealer sectorstorage.SectorManager, sc sealing.SectorIDCounter, verif ffiwrapper.Verifier) (*storage.Miner, error) {
+	dminelog.L.Debug("init StorageMiner", zap.String("SectorIDCounter", reflect.TypeOf(sc).String()))
 	maddr, err := minerAddrFromDS(ds)
 	if err != nil {
 		return nil, err
