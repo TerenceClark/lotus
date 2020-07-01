@@ -1,4 +1,9 @@
 
+if [ ! $1 ];then
+  echo "指定发布到哪个server"
+  exit 1
+fi
+
 deployto=~/tmp/lotus-deploy
 mkdir -p $deployto
 
@@ -15,4 +20,4 @@ cd ~/tmp
 
 tar cvfz lotus-deploy.tgz lotus-deploy
 
-scp lotus-deploy.tgz ipfsmain@ts1:~/
+scp lotus-deploy.tgz ipfsmain@$1:~/
