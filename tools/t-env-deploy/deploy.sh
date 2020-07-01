@@ -5,6 +5,7 @@ if [ ! $1 ];then
 fi
 
 deployto=~/tmp/lotus-deploy
+rm -rf $deployto
 mkdir -p $deployto
 
 cd ../..
@@ -18,6 +19,7 @@ cp restart-miner.sh restart-node.sh export-env.sh $deployto
 
 cd ~/tmp
 
+rm lotus-deploy.tgz
 tar cvfz lotus-deploy.tgz lotus-deploy
 
 scp lotus-deploy.tgz ipfsmain@$1:~/
