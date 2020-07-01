@@ -5,6 +5,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/filecoin-project/lotus/tools/dlog/dtxlog"
+	"go.uber.org/zap"
 	"os"
 	"sort"
 	"strings"
@@ -594,6 +596,7 @@ func blockSanityChecks(h *types.BlockHeader) error {
 
 // ValidateBlock should match up with 'Semantical Validation' in validation.md in the spec
 func (syncer *Syncer) ValidateBlock(ctx context.Context, b *types.FullBlock) (err error) {
+	dtxlog.L.Debug("ValidateBlock", zap.Int64("block height", int64(b.Header.Height)))
 	defer func() {
 		// b.Cid() could panic for empty blocks that are used in tests.
 		if rerr := recover(); rerr != nil {
