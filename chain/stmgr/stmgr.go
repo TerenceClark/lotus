@@ -3,6 +3,8 @@ package stmgr
 import (
 	"context"
 	"fmt"
+	"github.com/filecoin-project/lotus/tools/dlog/dtxlog"
+	"go.uber.org/zap"
 	"sync"
 
 	"github.com/filecoin-project/go-address"
@@ -149,6 +151,7 @@ type BlockMessages struct {
 type ExecCallback func(cid.Cid, *types.Message, *vm.ApplyRet) error
 
 func (sm *StateManager) ApplyBlocks(ctx context.Context, pstate cid.Cid, bms []BlockMessages, epoch abi.ChainEpoch, r vm.Rand, cb ExecCallback) (cid.Cid, cid.Cid, error) {
+	dtxlog.L.Debug("ApplyBlocks")
 	vmi, err := sm.newVM(pstate, epoch, r, sm.cs.Blockstore(), sm.cs.VMSys())
 	if err != nil {
 		return cid.Undef, cid.Undef, xerrors.Errorf("instantiating VM failed: %w", err)
@@ -162,6 +165,7 @@ func (sm *StateManager) ApplyBlocks(ctx context.Context, pstate cid.Cid, bms []B
 
 		for _, cm := range append(b.BlsMessages, b.SecpkMessages...) {
 			m := cm.VMMessage()
+			dtxlog.L.Debug("apply tipset msg", zap.String("method", m.Method.String()), zap.String("from", m.From.String()), zap.String("to", m.To.String()), zap.String("value", m.Value.String()))
 			if _, found := processedMsgs[m.Cid()]; found {
 				continue
 			}
@@ -207,6 +211,8 @@ func (sm *StateManager) ApplyBlocks(ctx context.Context, pstate cid.Cid, bms []B
 			Method:   builtin.MethodsReward.AwardBlockReward,
 			Params:   params,
 		}
+		dtxlog.L.Debug("apply rwMsg", zap.String("method", rwMsg.Method.String()), zap.String("from", rwMsg.From.String()), zap.String("to", rwMsg.To.String()), zap.String("value", rwMsg.Value.String()))
+
 		ret, err := vmi.ApplyImplicitMessage(ctx, rwMsg)
 		if err != nil {
 			return cid.Undef, cid.Undef, xerrors.Errorf("failed to apply reward message for miner %s: %w", b.Miner, err)
@@ -239,6 +245,7 @@ func (sm *StateManager) ApplyBlocks(ctx context.Context, pstate cid.Cid, bms []B
 		Method:   builtin.MethodsCron.EpochTick,
 		Params:   nil,
 	}
+	dtxlog.L.Debug("apply cronMsg", zap.String("method", cronMsg.Method.String()), zap.String("from", cronMsg.From.String()), zap.String("to", cronMsg.To.String()), zap.String("value", cronMsg.Value.String()))
 	ret, err := vmi.ApplyImplicitMessage(ctx, cronMsg)
 	if err != nil {
 		return cid.Undef, cid.Undef, err
