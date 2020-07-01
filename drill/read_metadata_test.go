@@ -1,10 +1,13 @@
 package drill
 
 import (
+	"bytes"
 	"fmt"
+	"github.com/filecoin-project/go-fil-markets/storagemarket"
 	"github.com/filecoin-project/lotus/node/modules"
 	"github.com/filecoin-project/lotus/node/repo"
 	"github.com/ipfs/go-cid"
+	"github.com/ipfs/go-datastore"
 	"testing"
 )
 
@@ -51,4 +54,42 @@ func TestReadMetaData(t *testing.T) {
 	for _, deal := range pieceInfo.Deals {
 		fmt.Println("piece info", deal.DealID, deal.SectorID)
 	}
+}
+
+func TestReadMeta(t *testing.T) {
+	repoPath := "/home/ipfsmain/workspace/filecoin/lotus-dev-env/lotusstorage"
+	//nodeType := repo.StorageMiner
+	r, err := repo.NewFS(repoPath)
+	if err != nil {
+		panic(err)
+	}
+
+	ok, err := r.Exists()
+	if err != nil {
+		panic(err)
+	}
+	if !ok {
+		panic(fmt.Sprintf("repo at '%s' is not initialized, run 'lotus-storage-miner init' to set it up", repoPath))
+	}
+	lockedRepo, err := r.Lock(repo.StorageMiner)
+	metaDS, err := modules.Datastore(lockedRepo)
+	if err != nil {
+		panic(err)
+	}
+	//qrs, err := metaDS.Query(query.Query{Prefix: "/"})
+	//if err != nil {
+	//	panic(err)
+	//}
+	//for qr := range qrs.Next() {
+	//	fmt.Println("key", qr.Key)
+	//}
+	pieceInfoB, err := metaDS.Get(datastore.NewKey("/deals/provider/bafyreid5ksu3j2ga2j3ud74mr7rii6owy3crhpkxpdrlvjpnm4mxmhf7xa"))
+	if err != nil {
+		panic(err)
+	}
+	var out storagemarket.MinerDeal
+	if err = out.UnmarshalCBOR(bytes.NewReader(pieceInfoB)); err != nil {
+		panic(err)
+	}
+	fmt.Println(out.Client.String())
 }
