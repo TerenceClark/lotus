@@ -3,6 +3,7 @@ package stmgr
 import (
 	"context"
 	"fmt"
+	"github.com/filecoin-project/lotus/tools/dlog/dretrievelog"
 	"github.com/filecoin-project/lotus/tools/dlog/dtxlog"
 	"go.uber.org/zap"
 	"sync"
@@ -490,6 +491,7 @@ func (sm *StateManager) GetReceipt(ctx context.Context, msg cid.Cid, ts *types.T
 // happened. It guarantees that the message has been on chain for at least confidence epochs without being reverted
 // before returning.
 func (sm *StateManager) WaitForMessage(ctx context.Context, mcid cid.Cid, confidence uint64) (*types.TipSet, *types.MessageReceipt, error) {
+	dretrievelog.L.Debug("retrieve WaitForMessage", zap.String("mcid", mcid.String()))
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 

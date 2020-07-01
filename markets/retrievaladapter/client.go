@@ -3,6 +3,8 @@ package retrievaladapter
 import (
 	"bytes"
 	"context"
+	"github.com/filecoin-project/lotus/tools/dlog/dretrievelog"
+	"go.uber.org/zap"
 
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-fil-markets/retrievalmarket"
@@ -36,6 +38,7 @@ func NewRetrievalClientNode(pmgr *paychmgr.Manager, payapi payapi.PaychAPI, chai
 // between a client and a miner and ensures the client has the given amount of
 // funds available in the channel.
 func (rcn *retrievalClientNode) GetOrCreatePaymentChannel(ctx context.Context, clientAddress address.Address, minerAddress address.Address, clientFundsAvailable abi.TokenAmount, tok shared.TipSetToken) (address.Address, cid.Cid, error) {
+	dretrievelog.L.Debug("GetOrCreatePaymentChannel", zap.String("clientFundsAvailable", clientFundsAvailable.String()), zap.String("minerAddress", minerAddress.String()))
 	// TODO: respect the provided TipSetToken (a serialized TipSetKey) when
 	// querying the chain
 	return rcn.pmgr.GetPaych(ctx, clientAddress, minerAddress, clientFundsAvailable)

@@ -3,6 +3,8 @@ package paychmgr
 import (
 	"bytes"
 	"context"
+	"github.com/filecoin-project/lotus/tools/dlog/dretrievelog"
+	"go.uber.org/zap"
 
 	"github.com/filecoin-project/specs-actors/actors/builtin"
 	init_ "github.com/filecoin-project/specs-actors/actors/builtin/init"
@@ -133,10 +135,13 @@ func (pm *Manager) GetPaych(ctx context.Context, from, to address.Address, ensur
 		pm.store.lk.Unlock()
 		return address.Undef, cid.Undef, xerrors.Errorf("findChan: %w", err)
 	}
+	// 这里怎样都会发消息到链上
 	if ch != address.Undef {
+		dretrievelog.L.Debug("addFunds", zap.String("ch", ch.String()), zap.String("from", from.String()))
 		// TODO: Track available funds
 		mcid, err = pm.addFunds(ctx, ch, from, ensureFree)
 	} else {
+		dretrievelog.L.Debug("createPaych", zap.String("to", to.String()), zap.String("from", from.String()))
 		mcid, err = pm.createPaych(ctx, from, to, ensureFree)
 	}
 	if err != nil {
