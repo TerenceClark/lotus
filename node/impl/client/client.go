@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/filecoin-project/lotus/tools/dlog/dretrievelog"
 	"github.com/filecoin-project/lotus/tools/dlog/dstoragelog"
 	"go.uber.org/zap"
 
@@ -396,6 +397,7 @@ func (a *API) ClientRetrieve(ctx context.Context, order api.RetrievalOrder, ref 
 
 	ppb := types.BigDiv(order.Total, types.NewInt(order.Size))
 
+	dretrievelog.L.Debug("client retrieve data", zap.Uint64("order.PaymentInterval", order.PaymentInterval), zap.Uint64("order.PaymentIntervalIncrease", order.PaymentIntervalIncrease), zap.String("total use coin", order.Total.String()))
 	_, err := a.Retrieval.Retrieve(
 		ctx,
 		order.Root,
