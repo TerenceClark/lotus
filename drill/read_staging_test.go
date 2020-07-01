@@ -98,23 +98,33 @@ func TestReadStagingByDAG(t *testing.T) {
 			//		return multiaddr.NewMultiaddr("/ip4/127.0.0.1/tcp/" + cctx.String("api"))
 			//	})),
 			node.Override(new(api.FullNode), nodeApi),
-			node.Override(node.ExecFunc, func(dag dtypes.StagingDAG) {
+			node.Override(node.ExecFunc, func(dag dtypes.StagingDAG, store dtypes.StagingBlockstore) {
 				fmt.Println("==== call exec func dag:", reflect.TypeOf(dag))
-				d1Cid, err := cid.Parse("bafkreif5jqx5vkj4bdv3udtjsh3zcp6oorxx6omouzxsfxcrhihagcoipq")
+				d1Cid, err := cid.Parse("bafkreibhhyqvrp5dh4axmspuvpda43ajmrr672vi5bwz3r4mf24eclf7ca")
 				if err != nil {
 					panic(err)
 				}
-				d1Node, err := dag.Get(ctx, d1Cid)
+				block, err := store.Get(d1Cid)
 				if err != nil {
 					panic(err)
 				}
-				file, err := unixfile.NewUnixfsFile(ctx, dag, d1Node)
-				if err != nil {
-					panic(err)
-				}
-				if err = files.WriteTo(file, "/home/ipfsmain/tmp/d2.txt"); err != nil {
-					panic(err)
-				}
+				fmt.Println("got block:", string(block.RawData()), "长度", len(block.RawData()))
+
+				//d1Cid, err := cid.Parse("bafkreif5jqx5vkj4bdv3udtjsh3zcp6oorxx6omouzxsfxcrhihagcoipq")
+				//if err != nil {
+				//	panic(err)
+				//}
+				//d1Node, err := dag.Get(ctx, d1Cid)
+				//if err != nil {
+				//	panic(err)
+				//}
+				//file, err := unixfile.NewUnixfsFile(ctx, dag, d1Node)
+				//if err != nil {
+				//	panic(err)
+				//}
+				//if err = files.WriteTo(file, "/home/ipfsmain/tmp/d2.txt"); err != nil {
+				//	panic(err)
+				//}
 			}),
 		)
 		if err != nil {
