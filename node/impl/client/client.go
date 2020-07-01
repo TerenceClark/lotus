@@ -11,6 +11,7 @@ import (
 	basicnode "github.com/ipld/go-ipld-prime/node/basic"
 	"github.com/ipld/go-ipld-prime/traversal/selector"
 	"github.com/ipld/go-ipld-prime/traversal/selector/builder"
+	"github.com/multiformats/go-multiaddr"
 
 	"io"
 	"os"
@@ -92,6 +93,15 @@ func (a *API) ClientStartDeal(ctx context.Context, params *api.StartDealParams) 
 		return nil, xerrors.Errorf("failed getting peer ID: %w", err)
 	}
 
+	multiaddrs := make([]multiaddr.Multiaddr, 0, len(mi.Multiaddrs))
+	for _, a := range mi.Multiaddrs {
+		maddr, err := multiaddr.NewMultiaddrBytes(a)
+		if err != nil {
+			return nil, err
+		}
+		multiaddrs = append(multiaddrs, maddr)
+	}
+
 	md, err := a.StateMinerProvingDeadline(ctx, params.Miner, types.EmptyTSK)
 	if err != nil {
 		return nil, xerrors.Errorf("failed getting peer ID: %w", err)
@@ -108,8 +118,7 @@ func (a *API) ClientStartDeal(ctx context.Context, params *api.StartDealParams) 
 	}
 	dstoragelog.L.Debug("after check data piece size", zap.Uint64("dataPieceSize", dataPieceSize))
 
-	// 获取具体存储的信息
-	providerInfo := utils.NewStorageProviderInfo(params.Miner, mi.Worker, mi.SectorSize, peer.ID(mi.PeerId))
+	providerInfo := utils.NewStorageProviderInfo(params.Miner, mi.Worker, mi.SectorSize, mi.PeerId, multiaddrs)
 
 	dealStart := params.DealStartEpoch
 	if dealStart <= 0 { // unset, or explicitly 'epoch undefined'
@@ -438,7 +447,7 @@ func (a *API) ClientRetrieve(ctx context.Context, order api.RetrievalOrder, ref 
 }
 
 func (a *API) ClientQueryAsk(ctx context.Context, p peer.ID, miner address.Address) (*storagemarket.SignedStorageAsk, error) {
-	info := utils.NewStorageProviderInfo(miner, address.Undef, 0, p)
+	info := utils.NewStorageProviderInfo(miner, address.Undef, 0, p, nil)
 	signedAsk, err := a.SMDealClient.GetAsk(ctx, info)
 	if err != nil {
 		return nil, err
