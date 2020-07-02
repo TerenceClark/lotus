@@ -54,6 +54,9 @@ type SectorBlocks struct {
 
 	keys  datastore.Batching
 	keyLk sync.Mutex
+
+	// add by llx, use for pack pieces to one sector
+	addPieceLk sync.Mutex
 }
 
 func NewSectorBlocks(miner *storage.Miner, ds dtypes.MetadataDS) *SectorBlocks {
@@ -98,7 +101,11 @@ func (st *SectorBlocks) writeRef(dealID abi.DealID, sectorID abi.SectorNumber, o
 }
 
 func (st *SectorBlocks) AddPiece(ctx context.Context, size abi.UnpaddedPieceSize, r io.Reader, d sealing.DealInfo) (sectorID abi.SectorNumber, err error) {
-	sectorID, pieceOffset, err := st.Miner.AllocatePiece(padreader.PaddedSize(uint64(size)))
+	// 里边复用sector的话 AllocatePiece、SealPiece 不能并发
+	st.addPieceLk.Lock()
+	defer st.addPieceLk.Unlock()
+
+	sectorID, pieceOffset, err := st.Miner.AllocatePieceAndSendIfNeeded(padreader.PaddedSize(uint64(size)))
 	if err != nil {
 		return 0, err
 	}
@@ -108,7 +115,7 @@ func (st *SectorBlocks) AddPiece(ctx context.Context, size abi.UnpaddedPieceSize
 		return 0, err
 	}
 
-	return sectorID, st.Miner.SealPiece(ctx, size, r, sectorID, d)
+	return sectorID, st.Miner.AddPiece(ctx, size, r, sectorID, d)
 }
 
 func (st *SectorBlocks) List() (map[uint64][]api.SealedRef, error) {
