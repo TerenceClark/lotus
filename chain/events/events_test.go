@@ -561,9 +561,9 @@ func TestAtChainedConfidenceNull(t *testing.T) {
 	require.Equal(t, false, reverted)
 }
 
-func matchAddrMethod(to address.Address, m abi.MethodNum) func(msg *types.Message) (bool, error) {
-	return func(msg *types.Message) (bool, error) {
-		return to == msg.To && m == msg.Method, nil
+func matchAddrMethod(to address.Address, m abi.MethodNum) func(msg *types.Message) (bool, bool, error) {
+	return func(msg *types.Message) (bool, bool, error) {
+		return true, to == msg.To && m == msg.Method, nil
 	}
 }
 

@@ -290,13 +290,13 @@ func (n *ProviderNodeAdapter) OnDealSectorCommitted(ctx context.Context, provide
 	var sectorNumber abi.SectorNumber
 	var sectorFound bool
 
-	//matchEvent := func(msg *types.Message) (matchOnce bool, matched bool, err error) {
-	matchEvent := func(msg *types.Message) (matched bool, err error) {
+	matchEvent := func(msg *types.Message) (matchOnce bool, matched bool, err error) {
+	//matchEvent := func(msg *types.Message) (matched bool, err error) {
 		dfilmarketlog.L.Debug("matchEvent 1")
 		if msg.To != provider {
 			dfilmarketlog.L.Debug("msg.To != provider")
-			return false, nil
-			//return false, false, nil
+			//return false, nil
+			return false, false, nil
 		}
 
 		switch msg.Method {
@@ -304,8 +304,8 @@ func (n *ProviderNodeAdapter) OnDealSectorCommitted(ctx context.Context, provide
 			dfilmarketlog.L.Debug("matchEvent 2")
 			var params miner.SectorPreCommitInfo
 			if err := params.UnmarshalCBOR(bytes.NewReader(msg.Params)); err != nil {
-				return false, xerrors.Errorf("unmarshal pre commit: %w", err)
-				//return false, false, xerrors.Errorf("unmarshal pre commit: %w", err)
+				//return false, xerrors.Errorf("unmarshal pre commit: %w", err)
+				return false, false, xerrors.Errorf("unmarshal pre commit: %w", err)
 			}
 			dfilmarketlog.L.Debug("matchEvent 2", zap.String("msg cid", msg.Cid().String()), zap.String("params.SectorNumber", params.SectorNumber.String()), zap.Int("deals len", len(params.DealIDs)))
 
@@ -316,38 +316,39 @@ func (n *ProviderNodeAdapter) OnDealSectorCommitted(ctx context.Context, provide
 
 					sectorNumber = params.SectorNumber
 					sectorFound = true
-					return false, nil
-					//return false, false, nil
+					//return false, nil
+					return false, false, nil
 				}
 			}
 
-			return false, nil
-			//return false, false, nil
+			//return false, nil
+			return false, false, nil
 		case builtin.MethodsMiner.ProveCommitSector:
 			var params miner.ProveCommitSectorParams
 			if err := params.UnmarshalCBOR(bytes.NewReader(msg.Params)); err != nil {
-				return false, xerrors.Errorf("failed to unmarshal prove commit sector params: %w", err)
-				//return false, false, xerrors.Errorf("failed to unmarshal prove commit sector params: %w", err)
+				//return false, xerrors.Errorf("failed to unmarshal prove commit sector params: %w", err)
+				return false, false, xerrors.Errorf("failed to unmarshal prove commit sector params: %w", err)
 			}
 			dfilmarketlog.L.Debug("matchEvent 3", zap.Uint64("cur dealID", uint64(dealID)))
 
 			if !sectorFound {
-				return false, nil
-				//return false, false, nil
+				//return false, nil
+				return false, false, nil
 			}
 
 			if params.SectorNumber != sectorNumber {
-				return false, nil
-				//return false, false, nil
+				//return false, nil
+				return false, false, nil
 			}
 			dfilmarketlog.L.Debug("matchEvent 3 pass", zap.Uint64("cur dealID", uint64(dealID)))
 
 			// todo 0701原版为true
-			return true, nil
-			//return false, true, nil
+			// 这步返回true是触发 RecordPieceInfo 来删除 piece 信息。而不是发 deal active 消息的地方。如果返回true但是没有触发 RecordPieceInfo 则说明 deal active的消息没有上链
+			//return false, nil
+			return false, true, nil
 		default:
-			return false, nil
-			//return false, false, nil
+			//return false, nil
+			return false, false, nil
 		}
 
 	}
