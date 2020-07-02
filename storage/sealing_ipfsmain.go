@@ -2,9 +2,9 @@ package storage
 
 import (
 	"context"
-	"io"
 	"github.com/filecoin-project/specs-actors/actors/abi"
 	sealing "github.com/filecoin-project/storage-fsm"
+	"io"
 )
 
 func (m *Miner) AllocatePieceAndSendIfNeeded(size abi.UnpaddedPieceSize) (sectorID abi.SectorNumber, offset uint64, err error) {

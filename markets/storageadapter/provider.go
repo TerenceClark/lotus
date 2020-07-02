@@ -5,6 +5,8 @@ package storageadapter
 import (
 	"bytes"
 	"context"
+	"github.com/filecoin-project/go-fil-markets/tools/dlog/dfilmarketlog"
+	"go.uber.org/zap"
 	"io"
 
 	"github.com/ipfs/go-cid"
@@ -229,20 +231,26 @@ func (n *ProviderNodeAdapter) OnDealSectorCommitted(ctx context.Context, provide
 	checkFunc := func(ts *types.TipSet) (done bool, more bool, err error) {
 		sd, err := n.StateMarketStorageDeal(ctx, dealID, ts.Key())
 
+		dfilmarketlog.L.Debug("OnDealSectorCommitted checkFunc", zap.Bool("done", done), zap.Bool("more", more), zap.Error(err), zap.Int64("ts height", int64(ts.Height())))
+
 		if err != nil {
 			// TODO: This may be fine for some errors
 			return false, false, xerrors.Errorf("failed to look up deal on chain: %w", err)
 		}
 
+		dfilmarketlog.L.Debug("OnDealSectorCommitted checkFunc2", zap.Int64("sd.State.SectorStartEpoch", int64(sd.State.SectorStartEpoch)))
+
 		if sd.State.SectorStartEpoch > 0 {
 			cb(nil)
 			return true, false, nil
 		}
-
+		dfilmarketlog.L.Debug("OnDealSectorCommitted checkFunc3 more")
 		return false, true, nil
 	}
 
 	called := func(msg *types.Message, rec *types.MessageReceipt, ts *types.TipSet, curH abi.ChainEpoch) (more bool, err error) {
+		dfilmarketlog.L.Debug("OnDealSectorCommitted called", zap.Int64("curH", int64(curH)), zap.Int64("ts h", int64(ts.Height())))
+
 		defer func() {
 			if err != nil {
 				cb(xerrors.Errorf("handling applied event: %w", err))
@@ -250,6 +258,7 @@ func (n *ProviderNodeAdapter) OnDealSectorCommitted(ctx context.Context, provide
 		}()
 
 		if msg == nil {
+			dfilmarketlog.L.Debug("timed out waiting for deal activation", zap.Int64("curH", int64(curH)), zap.Int64("ts h", int64(ts.Height())))
 			log.Error("timed out waiting for deal activation... what now?")
 			return false, nil
 		}
@@ -263,6 +272,7 @@ func (n *ProviderNodeAdapter) OnDealSectorCommitted(ctx context.Context, provide
 			return false, xerrors.Errorf("deal wasn't active: deal=%d, parentState=%s, h=%d", dealID, ts.ParentState(), ts.Height())
 		}
 
+		dfilmarketlog.L.Debug("OnDealSectorCommitted called finish", zap.String("sd.State.SectorStartEpoch", sd.State.SectorStartEpoch.String()), zap.Uint64("dealID", uint64(dealID)))
 		log.Infof("Storage deal %d activated at epoch %d", dealID, sd.State.SectorStartEpoch)
 
 		cb(nil)
@@ -271,6 +281,7 @@ func (n *ProviderNodeAdapter) OnDealSectorCommitted(ctx context.Context, provide
 	}
 
 	revert := func(ctx context.Context, ts *types.TipSet) error {
+		dfilmarketlog.L.Debug("deal activation reverted", zap.String("ts h", ts.Height().String()))
 		log.Warn("deal activation reverted; TODO: actually handle this!")
 		// TODO: Just go back to DealSealing?
 		return nil
@@ -279,44 +290,64 @@ func (n *ProviderNodeAdapter) OnDealSectorCommitted(ctx context.Context, provide
 	var sectorNumber abi.SectorNumber
 	var sectorFound bool
 
-	matchEvent := func(msg *types.Message) (bool, error) {
+	//matchEvent := func(msg *types.Message) (matchOnce bool, matched bool, err error) {
+	matchEvent := func(msg *types.Message) (matched bool, err error) {
+		dfilmarketlog.L.Debug("matchEvent 1")
 		if msg.To != provider {
+			dfilmarketlog.L.Debug("msg.To != provider")
 			return false, nil
+			//return false, false, nil
 		}
 
 		switch msg.Method {
 		case builtin.MethodsMiner.PreCommitSector:
+			dfilmarketlog.L.Debug("matchEvent 2")
 			var params miner.SectorPreCommitInfo
 			if err := params.UnmarshalCBOR(bytes.NewReader(msg.Params)); err != nil {
 				return false, xerrors.Errorf("unmarshal pre commit: %w", err)
+				//return false, false, xerrors.Errorf("unmarshal pre commit: %w", err)
 			}
+			dfilmarketlog.L.Debug("matchEvent 2", zap.String("msg cid", msg.Cid().String()), zap.String("params.SectorNumber", params.SectorNumber.String()), zap.Int("deals len", len(params.DealIDs)))
 
 			for _, did := range params.DealIDs {
+				dfilmarketlog.L.Debug("params.DealIDs", zap.Uint64("did", uint64(did)), zap.Uint64("cur dealID", uint64(dealID)))
 				if did == abi.DealID(dealID) {
+					dfilmarketlog.L.Debug("sectorFound", zap.Uint64("sectorNumber", uint64(sectorNumber)), zap.Uint64("cur dealID", uint64(dealID)))
+
 					sectorNumber = params.SectorNumber
 					sectorFound = true
 					return false, nil
+					//return false, false, nil
 				}
 			}
 
 			return false, nil
+			//return false, false, nil
 		case builtin.MethodsMiner.ProveCommitSector:
 			var params miner.ProveCommitSectorParams
 			if err := params.UnmarshalCBOR(bytes.NewReader(msg.Params)); err != nil {
 				return false, xerrors.Errorf("failed to unmarshal prove commit sector params: %w", err)
+				//return false, false, xerrors.Errorf("failed to unmarshal prove commit sector params: %w", err)
 			}
+			dfilmarketlog.L.Debug("matchEvent 3", zap.Uint64("cur dealID", uint64(dealID)))
 
 			if !sectorFound {
 				return false, nil
+				//return false, false, nil
 			}
 
 			if params.SectorNumber != sectorNumber {
 				return false, nil
+				//return false, false, nil
 			}
+			dfilmarketlog.L.Debug("matchEvent 3 pass", zap.Uint64("cur dealID", uint64(dealID)))
 
+			// todo 0701原版为true
 			return true, nil
+			//return false, true, nil
 		default:
 			return false, nil
+			//return false, false, nil
 		}
 
 	}

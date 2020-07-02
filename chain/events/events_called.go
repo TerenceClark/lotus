@@ -2,6 +2,8 @@ package events
 
 import (
 	"context"
+	"github.com/filecoin-project/go-fil-markets/tools/dlog/dfilmarketlog"
+	"go.uber.org/zap"
 	"math"
 	"sync"
 
@@ -247,6 +249,7 @@ func (e *hcEvents) applyWithConfidence(ts *types.TipSet, height abi.ChainEpoch) 
 				}
 			}
 
+			dfilmarketlog.L.Debug("applyWithConfidence", zap.String("height", height.String()))
 			more, err := trigger.handle(event.data, prevTs, triggerTs, height)
 			if err != nil {
 				log.Errorf("chain trigger (@H %d, triggered @ %d) failed: %s", origH, height, err)
@@ -286,6 +289,7 @@ func (e *hcEvents) applyTimeouts(ts *types.TipSet) {
 			log.Errorf("events: applyTimeouts didn't find tipset for event; wanted %d; current %d", ts.Height()-abi.ChainEpoch(trigger.confidence), ts.Height())
 		}
 
+		dfilmarketlog.L.Debug("applyTimeouts", zap.Int64("triggerID", int64(triggerID)))
 		more, err := trigger.handle(nil, nil, timeoutTs, ts.Height())
 		if err != nil {
 			log.Errorf("chain trigger (call @H %d, called @ %d) failed: %s", timeoutTs.Height(), ts.Height(), err)
@@ -475,6 +479,7 @@ func (me *messageEvents) checkNewCalls(ts *types.TipSet) (map[triggerID]eventDat
 		log.Errorf("getting parent tipset in checkNewCalls: %s", err)
 		return nil, err
 	}
+	dfilmarketlog.L.Debug("checkNewCalls", zap.String("ts h", ts.Height().String()), zap.Int("matchers len", len(me.matchers)))
 
 	res := make(map[triggerID]eventData)
 	me.messagesForTs(pts, func(msg *types.Message) {
@@ -493,6 +498,7 @@ func (me *messageEvents) checkNewCalls(ts *types.TipSet) (map[triggerID]eventDat
 				matched = ok
 
 				if matched {
+					dfilmarketlog.L.Debug("matchFn matched, pass all func behind")
 					break
 				}
 			}

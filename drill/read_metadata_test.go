@@ -8,6 +8,7 @@ import (
 	"github.com/filecoin-project/lotus/node/repo"
 	"github.com/ipfs/go-cid"
 	"github.com/ipfs/go-datastore"
+	"github.com/ipfs/go-datastore/query"
 	"testing"
 )
 
@@ -92,4 +93,34 @@ func TestReadMeta(t *testing.T) {
 		panic(err)
 	}
 	fmt.Println(out.Client.String())
+}
+
+func TestReadMetaKeys(t *testing.T) {
+	//repoPath := "/home/ipfsmain/workspace/filecoin/lotus-dev-env/lotusstorage"
+	repoPath := "/home/ipfsmain/workspace/filecoin/lotus-dev-env/lotus-data"
+	//nodeType := repo.StorageMiner
+	r, err := repo.NewFS(repoPath)
+	if err != nil {
+		panic(err)
+	}
+
+	ok, err := r.Exists()
+	if err != nil {
+		panic(err)
+	}
+	if !ok {
+		panic(fmt.Sprintf("repo at '%s' is not initialized, run 'lotus-storage-miner init' to set it up", repoPath))
+	}
+	lockedRepo, err := r.Lock(repo.StorageMiner)
+	metaDS, err := modules.Datastore(lockedRepo)
+	if err != nil {
+		panic(err)
+	}
+	qrs, err := metaDS.Query(query.Query{Prefix: "/"})
+	if err != nil {
+		panic(err)
+	}
+	for qr := range qrs.Next() {
+		fmt.Println("key", qr.Key)
+	}
 }
