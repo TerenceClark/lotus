@@ -123,7 +123,7 @@ func (a *CommonAPI) Version(context.Context) (api.Version, error) {
 		Version:    build.UserVersion(),
 		APIVersion: build.APIVersion,
 
-		BlockDelay: build.BlockDelay,
+		BlockDelay: build.BlockDelaySecs,
 	}, nil
 }
 
