@@ -59,9 +59,9 @@ func main() {
 var preSealCmd = &cli.Command{
 	Name: "pre-seal",
 	Flags: []cli.Flag{
-		&cli.StringFlag{
+		&cli.StringSliceFlag{
 			Name:  "miner-addr",
-			Value: "t01000",
+			Value: cli.NewStringSlice("t01000"),
 			Usage: "specify the future address of your miner",
 		},
 		&cli.StringFlag{
@@ -97,9 +97,14 @@ var preSealCmd = &cli.Command{
 			return err
 		}
 
-		maddr, err := address.NewFromString(c.String("miner-addr"))
-		if err != nil {
-			return err
+		tmpAddrs := c.StringSlice("miner-addr")
+		var maddr []address.Address
+		for _, addr := range tmpAddrs {
+			tmpA, err := address.NewFromString(addr)
+			if err != nil {
+				return err
+			}
+			maddr = append(maddr, tmpA)
 		}
 
 		var k *types.KeyInfo
@@ -126,12 +131,20 @@ var preSealCmd = &cli.Command{
 			return err
 		}
 
-		gm, key, err := seed.PreSeal(maddr, rp, abi.SectorNumber(c.Uint64("sector-offset")), c.Int("num-sectors"), sbroot, []byte(c.String("ticket-preimage")), k)
-		if err != nil {
-			return err
+		var minerInfo []*seed.MinerSeedInfo
+		for _, tmpM := range maddr {
+			gm, key, err := seed.PreSeal(tmpM, rp, abi.SectorNumber(c.Uint64("sector-offset")), c.Int("num-sectors"), sbroot, []byte(c.String("ticket-preimage")), k)
+			if err != nil {
+				return err
+			}
+			minerInfo = append(minerInfo, &seed.MinerSeedInfo{
+				MAddr: tmpM,
+				Gm:    gm,
+				Key:   key,
+			})
 		}
 
-		return seed.WriteGenesisMiner(maddr, sbroot, gm, key)
+		return seed.WriteGenesisMiners(sbroot, minerInfo)
 	},
 }
 
