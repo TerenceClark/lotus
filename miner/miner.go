@@ -355,7 +355,7 @@ func (m *Miner) mineOne(ctx context.Context, base *MiningBase) (*types.BlockMsg,
 
 	tCreateBlock := time.Now()
 	dur := tCreateBlock.Sub(start)
-	log.Infow("mined new block", "cid", b.Cid(), "height", b.Header.Height, "took", dur)
+	log.Infow("mined new block", "cid", b.Cid(), "height", b.Header.Height, "took", dur, "超过该时间就算过长", time.Second*time.Duration(build.BlockDelaySecs), "BlockDelaySecs", time.Duration(build.BlockDelaySecs))
 	if dur > time.Second*time.Duration(build.BlockDelaySecs) {
 		log.Warn("CAUTION: block production took longer than the block delay. Your computer may not be fast enough to keep up")
 
