@@ -3,6 +3,8 @@ package blocksync
 import (
 	"bufio"
 	"context"
+	"github.com/filecoin-project/lotus/tools/dlog/dbsynclog"
+	"go.uber.org/zap"
 	"time"
 
 	"github.com/libp2p/go-libp2p-core/protocol"
@@ -125,6 +127,7 @@ func (bss *BlockSyncService) HandleStream(s inet.Stream) {
 		return
 	}
 
+	dbsynclog.L.Debug("send sync resp", zap.Int("ts len", len(resp.Chain)))
 	writeDeadline := 60 * time.Second
 	_ = s.SetDeadline(time.Now().Add(writeDeadline))
 	if err := cborutil.WriteCborRPC(s, resp); err != nil {
@@ -186,6 +189,7 @@ func collectChainSegment(cs *store.ChainStore, start types.TipSetKey, length uin
 		if err != nil {
 			return nil, xerrors.Errorf("failed loading tipset %s: %w", cur, err)
 		}
+		dbsynclog.L.Debug("load tip set for client sync", zap.String("h", ts.Height().String()))
 
 		if opts.IncludeMessages {
 			bmsgs, bmincl, smsgs, smincl, err := gatherMessages(cs, ts)
