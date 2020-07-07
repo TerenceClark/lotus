@@ -1,0 +1,9 @@
+/filecoin/workdir/lotus-nor/logs/*.log
+{
+    daily
+    rotate 15
+    missingok
+    notifempty
+    compress
+    copytruncate
+}

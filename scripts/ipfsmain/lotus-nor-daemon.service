@@ -1,0 +1,23 @@
+[Unit]
+Description=Lotus-nor Daemon
+After=network-online.target
+Requires=network-online.target
+
+[Service]
+User=root
+Environment=GOLOG_FILE="/filecoin/workdir/lotus-nor/logs/daemon.log"
+Environment=GOLOG_LOG_FMT="json"
+Environment=LOTUS_PATH="/filecoin/workdir/lotus-nor"
+ExecStart=/home/ipfsmain/lotus-nor/lotus daemon --api=1239
+#KillMode=cgroup
+KillMode=process
+Restart=always
+RestartSec=5
+
+MemoryAccounting=true
+MemoryHigh=8G
+MemoryMax=10G
+LimitNOFILE=8192:10240
+
+[Install]
+WantedBy=multiuser.target
