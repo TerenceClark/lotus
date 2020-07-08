@@ -142,3 +142,9 @@ replace github.com/filecoin-project/sector-storage => ../sector-storage
 replace github.com/libp2p/go-libp2p => ../../libp2p/go-libp2p
 
 replace github.com/libp2p/go-libp2p-core => ../../libp2p/go-libp2p-core
+
+replace github.com/libp2p/go-libp2p-kad-dht => ../../libp2p/go-libp2p-kad-dht
+
+replace github.com/libp2p/go-libp2p-pubsub => ../../libp2p/go-libp2p-pubsub
+
+replace github.com/libp2p/go-libp2p-kbucket => ../../libp2p/go-libp2p-kbucket

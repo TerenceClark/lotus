@@ -2,6 +2,9 @@ package common
 
 import (
 	"context"
+	"github.com/filecoin-project/lotus/tools/dlog/dp2plog"
+	"go.uber.org/zap"
+	"reflect"
 	"sort"
 	"strings"
 
@@ -96,6 +99,8 @@ func (a *CommonAPI) NetConnect(ctx context.Context, p peer.AddrInfo) error {
 		swrm.Backoff().Clear(p.ID)
 	}
 
+	// "host type": "*routedhost.RoutedHost"
+	dp2plog.L.Debug("api net connect", zap.Any("to peer", p), zap.Any("host type", reflect.TypeOf(a.Host)))
 	return a.Host.Connect(ctx, p)
 }
 
