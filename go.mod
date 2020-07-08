@@ -138,3 +138,7 @@ replace github.com/filecoin-project/storage-fsm => ../storage-fsm
 replace github.com/filecoin-project/specs-actors => ../specs-actors
 
 replace github.com/filecoin-project/sector-storage => ../sector-storage
+
+replace github.com/libp2p/go-libp2p => ../../libp2p/go-libp2p
+
+replace github.com/libp2p/go-libp2p-core => ../../libp2p/go-libp2p-core

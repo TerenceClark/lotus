@@ -2,6 +2,8 @@ package lp2p
 
 import (
 	"context"
+	"github.com/filecoin-project/lotus/tools/dlog/dp2plog"
+	"go.uber.org/zap"
 	"time"
 
 	"github.com/libp2p/go-libp2p-core/host"
@@ -20,6 +22,7 @@ type discoveryHandler struct {
 
 func (dh *discoveryHandler) HandlePeerFound(p peer.AddrInfo) {
 	log.Warnw("discovred peer", "peer", p)
+	dp2plog.L.Debug("handle peer found", zap.String("p", p.ID.Pretty()), zap.Any("add", p.Addrs))
 	ctx, cancel := context.WithTimeout(dh.ctx, discoveryConnTimeout)
 	defer cancel()
 	if err := dh.host.Connect(ctx, p); err != nil {

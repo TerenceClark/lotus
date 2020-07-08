@@ -93,7 +93,6 @@ func listenAddresses(addresses []string) ([]ma.Multiaddr, error) {
 			return nil, fmt.Errorf("failure to parse config.Addresses.Swarm: %s", addresses)
 		}
 		listen = append(listen, maddr)
-		dp2plog.L.Debug("NewMultiaddr", zap.String("maddr", maddr.String()))
 	}
 
 	return listen, nil
