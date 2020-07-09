@@ -108,6 +108,7 @@ func NilRouting(mctx helpers.MetricsCtx) (BaseIpfsRouting, error) {
 	return nilrouting.ConstructNilRouting(mctx, nil, nil, nil)
 }
 
+// 做一个上层wrap解决循环依赖？
 func RoutedHost(rh RawHost, r BaseIpfsRouting) host.Host {
 	return routedhost.Wrap(rh, r)
 }
