@@ -69,6 +69,7 @@ func makeAddrsFactory(announce []string, noAnnounce []string) (p2pbhost.AddrsFac
 				out = append(out, maddr)
 			}
 		}
+		dp2plog.L.Debug("addr fac called, an noan filter", zap.Any("allAddrs", allAddrs), zap.Any("annAddrs", annAddrs), zap.Any("noAnnAddrs", noAnnAddrs), zap.Any("out", out))
 		return out
 	}, nil
 }
