@@ -9,7 +9,6 @@ import (
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/peer"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
-	"github.com/libp2p/go-libp2p/dlog/dlp2plog"
 	"go.uber.org/fx"
 	"go.uber.org/zap"
 	"golang.org/x/xerrors"
@@ -95,7 +94,7 @@ func HandleIncomingMessages(mctx helpers.MetricsCtx, lc fx.Lifecycle, ps *pubsub
 	v := sub.NewMessageValidator(mpool)
 
 	topic := build.MessagesTopic(nn)
-	dlp2plog.L.Debug("pubsub RegisterTopicValidator", zap.String("topic", topic))
+	dp2plog.L.Debug("pubsub RegisterTopicValidator", zap.String("topic", topic))
 	if err := ps.RegisterTopicValidator(topic, v.Validate); err != nil {
 		panic(err)
 	}

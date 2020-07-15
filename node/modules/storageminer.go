@@ -4,11 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/filecoin-project/lotus/tools/dlog/dminelog"
 	"github.com/filecoin-project/lotus/tools/dlog/dstoragelog"
 	"go.uber.org/zap"
 	"net/http"
-	"reflect"
+	"time"
 
 	"github.com/ipfs/go-bitswap"
 	"github.com/ipfs/go-bitswap/network"
@@ -28,7 +27,9 @@ import (
 	"golang.org/x/xerrors"
 
 	"github.com/filecoin-project/go-address"
-	dtgraphsync "github.com/filecoin-project/go-data-transfer/impl/graphsync"
+	dtimpl "github.com/filecoin-project/go-data-transfer/impl"
+	dtnet "github.com/filecoin-project/go-data-transfer/network"
+	dtgstransport "github.com/filecoin-project/go-data-transfer/transport/graphsync"
 	piecefilestore "github.com/filecoin-project/go-fil-markets/filestore"
 	"github.com/filecoin-project/go-fil-markets/piecestore"
 	"github.com/filecoin-project/go-fil-markets/retrievalmarket"
@@ -138,8 +139,7 @@ func SectorIDCounter(ds dtypes.MetadataDS) sealing.SectorIDCounter {
 	return &sidsc{sc}
 }
 
-func StorageMiner(mctx helpers.MetricsCtx, lc fx.Lifecycle, api lapi.FullNode, h host.Host, ds dtypes.MetadataDS, sealer sectorstorage.SectorManager, sc sealing.SectorIDCounter, verif ffiwrapper.Verifier) (*storage.Miner, error) {
-	dminelog.L.Debug("init StorageMiner", zap.String("SectorIDCounter", reflect.TypeOf(sc).String()))
+func StorageMiner(mctx helpers.MetricsCtx, lc fx.Lifecycle, api lapi.FullNode, h host.Host, ds dtypes.MetadataDS, sealer sectorstorage.SectorManager, sc sealing.SectorIDCounter, verif ffiwrapper.Verifier, gsd dtypes.GetSealingDelayFunc) (*storage.Miner, error) {
 	maddr, err := minerAddrFromDS(ds)
 	if err != nil {
 		return nil, err
@@ -162,7 +162,7 @@ func StorageMiner(mctx helpers.MetricsCtx, lc fx.Lifecycle, api lapi.FullNode, h
 		return nil, err
 	}
 
-	sm, err := storage.NewMiner(api, maddr, worker, h, ds, sealer, sc, verif)
+	sm, err := storage.NewMiner(api, maddr, worker, h, ds, sealer, sc, verif, gsd)
 	if err != nil {
 		return nil, err
 	}
@@ -213,10 +213,26 @@ func RegisterProviderValidator(mrv dtypes.ProviderRequestValidator, dtm dtypes.P
 
 // NewProviderDAGServiceDataTransfer returns a data transfer manager that just
 // uses the provider's Staging DAG service for transfers
-func NewProviderDAGServiceDataTransfer(h host.Host, gs dtypes.StagingGraphsync, ds dtypes.MetadataDS) dtypes.ProviderDataTransfer {
-	// gs 就是底层负责传输数据的
+func NewProviderDAGServiceDataTransfer(lc fx.Lifecycle, h host.Host, gs dtypes.StagingGraphsync, ds dtypes.MetadataDS) (dtypes.ProviderDataTransfer, error) {
 	sc := storedcounter.New(ds, datastore.NewKey("/datatransfer/provider/counter"))
-	return dtgraphsync.NewGraphSyncDataTransfer(h, gs, sc)
+	net := dtnet.NewFromLibp2pHost(h)
+
+	dtDs := namespace.Wrap(ds, datastore.NewKey("/datatransfer/provider/transfers"))
+	transport := dtgstransport.NewTransport(h.ID(), gs)
+	dt, err := dtimpl.NewDataTransfer(dtDs, net, transport, sc)
+	if err != nil {
+		return nil, err
+	}
+
+	lc.Append(fx.Hook{
+		OnStart: func(ctx context.Context) error {
+			return dt.Start(ctx)
+		},
+		OnStop: func(context.Context) error {
+			return dt.Stop()
+		},
+	})
+	return dt, nil
 }
 
 // NewProviderDealStore creates a statestore for the client to store its deals
@@ -529,6 +545,24 @@ func NewSetConsiderOfflineRetrievalDealsConfigFunc(r repo.LockedRepo) (dtypes.Se
 	return func(b bool) (err error) {
 		err = mutateCfg(r, func(cfg *config.StorageMiner) {
 			cfg.Dealmaking.ConsiderOfflineRetrievalDeals = b
+		})
+		return
+	}, nil
+}
+
+func NewSetSealDelayFunc(r repo.LockedRepo) (dtypes.SetSealingDelayFunc, error) {
+	return func(delay time.Duration) (err error) {
+		err = mutateCfg(r, func(cfg *config.StorageMiner) {
+			cfg.SealingDelay = config.Duration(delay)
+		})
+		return
+	}, nil
+}
+
+func NewGetSealDelayFunc(r repo.LockedRepo) (dtypes.GetSealingDelayFunc, error) {
+	return func() (out time.Duration, err error) {
+		err = readCfg(r, func(cfg *config.StorageMiner) {
+			out = time.Duration(cfg.SealingDelay)
 		})
 		return
 	}, nil

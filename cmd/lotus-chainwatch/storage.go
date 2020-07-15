@@ -530,12 +530,12 @@ func (st *storage) storeSectors(minerTips map[types.TipSetKey][]*minerStateInfo,
 				if _, err := stmt.Exec(
 					miner.addr.String(),
 					uint64(sector.ID),
-					int64(sector.Info.ActivationEpoch),
-					int64(sector.Info.Info.Expiration),
+					int64(sector.Info.Activation),
+					int64(sector.Info.Expiration),
 					sector.Info.DealWeight.String(),
 					sector.Info.VerifiedDealWeight.String(),
-					sector.Info.Info.SealedCID.String(),
-					int64(sector.Info.Info.SealRandEpoch),
+					sector.Info.SealedCID.String(),
+					0, // TODO: Not there now?
 				); err != nil {
 					return err
 				}
@@ -687,7 +687,7 @@ func (st *storage) updateMinerSectors(minerTips map[types.TipSetKey][]*minerStat
 				}
 
 				for _, sector := range sectors {
-					if _, err := eventStmt.Exec(sector.Info.Info.SectorNumber, "ADDED", miner.addr.String(), miner.stateroot.String()); err != nil {
+					if _, err := eventStmt.Exec(sector.Info.SectorNumber, "ADDED", miner.addr.String(), miner.stateroot.String()); err != nil {
 						return err
 					}
 				}
@@ -705,17 +705,17 @@ func (st *storage) updateMinerSectors(minerTips map[types.TipSetKey][]*minerStat
 				log.Debugw("sector changes for miner", "miner", miner.addr.String(), "Added", len(changes.Added), "Extended", len(changes.Extended), "Removed", len(changes.Removed), "oldState", miner.parentTsKey, "newState", miner.tsKey)
 
 				for _, extended := range changes.Extended {
-					if _, err := eventStmt.Exec(extended.To.Info.SectorNumber, "EXTENDED", miner.addr.String(), miner.stateroot.String()); err != nil {
+					if _, err := eventStmt.Exec(extended.To.SectorNumber, "EXTENDED", miner.addr.String(), miner.stateroot.String()); err != nil {
 						return err
 					}
 					sectorUpdates = append(sectorUpdates, sectorUpdate{
 						terminationEpoch: 0,
 						terminated:       false,
-						expirationEpoch:  extended.To.Info.Expiration,
-						sectorID:         extended.To.Info.SectorNumber,
+						expirationEpoch:  extended.To.Expiration,
+						sectorID:         extended.To.SectorNumber,
 						minerID:          miner.addr,
 					})
-					log.Debugw("sector extended", "miner", miner.addr.String(), "sector", extended.To.Info.SectorNumber, "old", extended.To.Info.Expiration, "new", extended.From.Info.Expiration)
+					log.Debugw("sector extended", "miner", miner.addr.String(), "sector", extended.To.SectorNumber, "old", extended.To.Expiration, "new", extended.From.Expiration)
 				}
 				curTs, err := api.ChainGetTipSet(context.TODO(), miner.tsKey)
 				if err != nil {
@@ -724,27 +724,27 @@ func (st *storage) updateMinerSectors(minerTips map[types.TipSetKey][]*minerStat
 
 				for _, removed := range changes.Removed {
 					// decide if they were terminated or extended
-					if removed.Info.Expiration > curTs.Height() {
-						if _, err := eventStmt.Exec(removed.Info.SectorNumber, "TERMINATED", miner.addr.String(), miner.stateroot.String()); err != nil {
+					if removed.Expiration > curTs.Height() {
+						if _, err := eventStmt.Exec(removed.SectorNumber, "TERMINATED", miner.addr.String(), miner.stateroot.String()); err != nil {
 							return err
 						}
-						log.Debugw("sector terminated", "miner", miner.addr.String(), "sector", removed.Info.SectorNumber, "old", "sectorExpiration", removed.Info.Expiration, "terminationEpoch", curTs.Height())
+						log.Debugw("sector terminated", "miner", miner.addr.String(), "sector", removed.SectorNumber, "old", "sectorExpiration", removed.Expiration, "terminationEpoch", curTs.Height())
 						sectorUpdates = append(sectorUpdates, sectorUpdate{
 							terminationEpoch: curTs.Height(),
 							terminated:       true,
-							expirationEpoch:  removed.Info.Expiration,
-							sectorID:         removed.Info.SectorNumber,
+							expirationEpoch:  removed.Expiration,
+							sectorID:         removed.SectorNumber,
 							minerID:          miner.addr,
 						})
 					}
-					if _, err := eventStmt.Exec(removed.Info.SectorNumber, "EXPIRED", miner.addr.String(), miner.stateroot.String()); err != nil {
+					if _, err := eventStmt.Exec(removed.SectorNumber, "EXPIRED", miner.addr.String(), miner.stateroot.String()); err != nil {
 						return err
 					}
-					log.Debugw("sector removed", "miner", miner.addr.String(), "sector", removed.Info.SectorNumber, "old", "sectorExpiration", removed.Info.Expiration, "currEpoch", curTs.Height())
+					log.Debugw("sector removed", "miner", miner.addr.String(), "sector", removed.SectorNumber, "old", "sectorExpiration", removed.Expiration, "currEpoch", curTs.Height())
 				}
 
 				for _, added := range changes.Added {
-					if _, err := eventStmt.Exec(miner.addr.String(), added.Info.SectorNumber, miner.stateroot.String(), "ADDED"); err != nil {
+					if _, err := eventStmt.Exec(miner.addr.String(), added.SectorNumber, miner.stateroot.String(), "ADDED"); err != nil {
 						return err
 					}
 				}

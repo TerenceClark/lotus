@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/ipfs/go-cid"
-	"github.com/ipfs/go-filestore"
 	"github.com/libp2p/go-libp2p-core/peer"
 
 	"github.com/filecoin-project/go-address"
@@ -16,6 +15,7 @@ import (
 	"github.com/filecoin-project/specs-actors/actors/builtin/miner"
 	"github.com/filecoin-project/specs-actors/actors/builtin/paych"
 	"github.com/filecoin-project/specs-actors/actors/builtin/power"
+	"github.com/filecoin-project/specs-actors/actors/builtin/verifreg"
 	"github.com/filecoin-project/specs-actors/actors/crypto"
 
 	"github.com/filecoin-project/lotus/chain/types"
@@ -192,7 +192,9 @@ type FullNode interface {
 	// retrieval markets as a client
 
 	// ClientImport imports file under the specified path into filestore.
-	ClientImport(ctx context.Context, ref FileRef) (cid.Cid, error)
+	ClientImport(ctx context.Context, ref FileRef) (*ImportRes, error)
+	// ClientRemoveImport removes file import
+	ClientRemoveImport(ctx context.Context, importID int64) error
 	// ClientStartDeal proposes a deal with a miner.
 	ClientStartDeal(ctx context.Context, params *StartDealParams) (*cid.Cid, error)
 	// ClientGetDealInfo returns the latest information about a given deal.
@@ -202,9 +204,9 @@ type FullNode interface {
 	// ClientHasLocal indicates whether a certain CID is locally stored.
 	ClientHasLocal(ctx context.Context, root cid.Cid) (bool, error)
 	// ClientFindData identifies peers that have a certain file, and returns QueryOffers (one per peer).
-	ClientFindData(ctx context.Context, root cid.Cid) ([]QueryOffer, error)
+	ClientFindData(ctx context.Context, root cid.Cid, piece *cid.Cid) ([]QueryOffer, error)
 	// ClientMinerQueryOffer returns a QueryOffer for the specific miner and file.
-	ClientMinerQueryOffer(ctx context.Context, root cid.Cid, miner address.Address) (QueryOffer, error)
+	ClientMinerQueryOffer(ctx context.Context, miner address.Address, root cid.Cid, piece *cid.Cid) (QueryOffer, error)
 	// ClientRetrieve initiates the retrieval of a file, as specified in the order.
 	ClientRetrieve(ctx context.Context, order RetrievalOrder, ref *FileRef) error
 	// ClientQueryAsk returns a signed StorageAsk from the specified miner.
@@ -262,7 +264,7 @@ type FullNode interface {
 	// StateMinerRecoveries returns a bitfield indicating the recovering sectors of the given miner
 	StateMinerRecoveries(context.Context, address.Address, types.TipSetKey) (*abi.BitField, error)
 	// StateMinerInitialPledgeCollateral returns the initial pledge collateral for the specified miner's sector
-	StateMinerInitialPledgeCollateral(context.Context, address.Address, abi.SectorNumber, types.TipSetKey) (types.BigInt, error)
+	StateMinerInitialPledgeCollateral(context.Context, address.Address, miner.SectorPreCommitInfo, types.TipSetKey) (types.BigInt, error)
 	// StateMinerAvailableBalance returns the portion of a miner's balance that can be withdrawn or spent
 	StateMinerAvailableBalance(context.Context, address.Address, types.TipSetKey) (types.BigInt, error)
 	// StateSectorPreCommitInfo returns the PreCommit info for the specified miner's sector
@@ -301,6 +303,10 @@ type FullNode interface {
 	// StateCompute is a flexible command that applies the given messages on the given tipset.
 	// The messages are run as though the VM were at the provided height.
 	StateCompute(context.Context, abi.ChainEpoch, []*types.Message, types.TipSetKey) (*ComputeStateOutput, error)
+	// StateVerifiedClientStatus returns the data cap for the given address.
+	// Returns nil if there is no entry in the data cap table for the
+	// address.
+	StateVerifiedClientStatus(ctx context.Context, addr address.Address, tsk types.TipSetKey) (*verifreg.DataCap, error)
 
 	// MethodGroup: Msig
 	// The Msig methods are used to interact with multisig wallets on the
@@ -311,7 +317,7 @@ type FullNode interface {
 	// MsigGetAvailableBalance creates a multisig wallet
 	// It takes the following params: <required number of senders>, <approving addresses>, <initial balance>,
 	// <sender address of the create msg>, <gas price>
-	MsigCreate(context.Context, int64, []address.Address, types.BigInt, address.Address, types.BigInt) (cid.Cid, error)
+	MsigCreate(context.Context, uint64, []address.Address, types.BigInt, address.Address, types.BigInt) (cid.Cid, error)
 	// MsigPropose proposes a multisig message
 	// It takes the following params: <multisig address>, <recipient address>, <value to transfer>,
 	// <sender address of the propose msg>, <method to call in the proposed message>, <params to include in the proposed message>
@@ -356,11 +362,18 @@ type MinerSectors struct {
 	Pset uint64
 }
 
+type ImportRes struct {
+	Root     cid.Cid
+	ImportID int64
+}
+
 type Import struct {
-	Status   filestore.Status
-	Key      cid.Cid
+	Key int64
+	Err string
+
+	Root     *cid.Cid
+	Source   string
 	FilePath string
-	Size     uint64
 }
 
 type DealInfo struct {
@@ -448,7 +461,8 @@ type MinerPower struct {
 type QueryOffer struct {
 	Err string
 
-	Root cid.Cid
+	Root  cid.Cid
+	Piece *cid.Cid
 
 	Size                    uint64
 	MinPrice                types.BigInt
@@ -461,6 +475,7 @@ type QueryOffer struct {
 func (o *QueryOffer) Order(client address.Address) RetrievalOrder {
 	return RetrievalOrder{
 		Root:                    o.Root,
+		Piece:                   o.Piece,
 		Size:                    o.Size,
 		Total:                   o.MinPrice,
 		PaymentInterval:         o.PaymentInterval,
@@ -484,8 +499,9 @@ type MarketDeal struct {
 
 type RetrievalOrder struct {
 	// TODO: make this less unixfs specific
-	Root cid.Cid
-	Size uint64
+	Root  cid.Cid
+	Piece *cid.Cid
+	Size  uint64
 	// TODO: support offset
 	Total                   types.BigInt
 	PaymentInterval         uint64
@@ -515,6 +531,8 @@ type StartDealParams struct {
 	EpochPrice        types.BigInt
 	MinBlocksDuration uint64
 	DealStartEpoch    abi.ChainEpoch
+	FastRetrieval     bool
+	VerifiedDeal      bool
 }
 
 type IpldObject struct {

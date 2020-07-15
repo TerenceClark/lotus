@@ -74,12 +74,10 @@ func TestPredicates(t *testing.T) {
 		abi.DealID(1): {
 			SectorStartEpoch: 1,
 			LastUpdatedEpoch: 2,
-			SlashEpoch:       0,
 		},
 		abi.DealID(2): {
 			SectorStartEpoch: 4,
 			LastUpdatedEpoch: 5,
-			SlashEpoch:       0,
 		},
 	}
 	oldStateC := createMarketState(ctx, t, store, oldDeals)
@@ -88,12 +86,6 @@ func TestPredicates(t *testing.T) {
 		abi.DealID(1): {
 			SectorStartEpoch: 1,
 			LastUpdatedEpoch: 3,
-			SlashEpoch:       0,
-		},
-		abi.DealID(2): {
-			SectorStartEpoch: 4,
-			LastUpdatedEpoch: 6,
-			SlashEpoch:       6,
 		},
 	}
 	newStateC := createMarketState(ctx, t, store, newDeals)
@@ -134,9 +126,16 @@ func TestPredicates(t *testing.T) {
 		t.Fatal("Unexpected change to LastUpdatedEpoch")
 	}
 	deal2 := changedDeals[abi.DealID(2)]
-	if deal2.From.SlashEpoch != 0 || deal2.To.SlashEpoch != 6 {
-		t.Fatal("Unexpected change to SlashEpoch")
+	if deal2.From.LastUpdatedEpoch != 5 || deal2.To != nil {
+		t.Fatal("Expected To to be nil")
 	}
+
+	// Diff with non-existent deal.
+	noDeal := []abi.DealID{3}
+	diffNoDealFn := preds.OnStorageMarketActorChanged(preds.OnDealStateChanged(preds.DealStateChangedForIDs(noDeal)))
+	changed, _, err = diffNoDealFn(ctx, oldState.Key(), newState.Key())
+	require.NoError(t, err)
+	require.False(t, changed)
 
 	// Test that OnActorStateChanged does not call the callback if the state has not changed
 	mockAddr, err := address.NewFromString("t01")
@@ -183,7 +182,7 @@ func TestMinerSectorChange(t *testing.T) {
 	// 2 same
 	// 3 added
 	si1Ext := si1
-	si1Ext.Info.Expiration++
+	si1Ext.Expiration++
 	newMinerC := createMinerState(ctx, t, store, owner, worker, []miner.SectorOnChainInfo{si1Ext, si2, si3})
 
 	minerAddr := nextIDAddrF()
@@ -305,7 +304,9 @@ func createEmptyMinerState(ctx context.Context, t *testing.T, store *cbornode.Ba
 	emptyDeadlinesCid, err := store.Put(context.Background(), emptyDeadlines)
 	require.NoError(t, err)
 
-	state, err := miner.ConstructState(emptyArrayCid, emptyMap, emptyDeadlinesCid, owner, worker, abi.PeerID{'1'}, nil, abi.RegisteredSealProof_StackedDrg64GiBV1, 0)
+	minerInfo := emptyMap
+
+	state, err := miner.ConstructState(minerInfo, 123, emptyArrayCid, emptyMap, emptyDeadlinesCid)
 	require.NoError(t, err)
 	return state
 
@@ -315,7 +316,7 @@ func createSectorsAMT(ctx context.Context, t *testing.T, store *cbornode.BasicIp
 	root := amt.NewAMT(store)
 	for _, sector := range sectors {
 		sector := sector
-		err := root.Set(ctx, uint64(sector.Info.SectorNumber), &sector)
+		err := root.Set(ctx, uint64(sector.SectorNumber), &sector)
 		require.NoError(t, err)
 	}
 	rootCid, err := root.Flush(ctx)
@@ -327,10 +328,16 @@ func createSectorsAMT(ctx context.Context, t *testing.T, store *cbornode.BasicIp
 func newSectorOnChainInfo(sectorNo abi.SectorNumber, sealed cid.Cid, weight big.Int, activation, expiration abi.ChainEpoch) miner.SectorOnChainInfo {
 	info := newSectorPreCommitInfo(sectorNo, sealed, expiration)
 	return miner.SectorOnChainInfo{
-		Info:               *info,
-		ActivationEpoch:    activation,
+		SectorNumber: info.SectorNumber,
+		SealProof:    info.SealProof,
+		SealedCID:    info.SealedCID,
+		DealIDs:      info.DealIDs,
+		Expiration:   info.Expiration,
+
+		Activation:         activation,
 		DealWeight:         weight,
 		VerifiedDealWeight: weight,
+		InitialPledge:      big.Zero(),
 	}
 }
 

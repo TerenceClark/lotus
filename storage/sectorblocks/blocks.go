@@ -15,7 +15,6 @@ import (
 	"golang.org/x/xerrors"
 
 	cborutil "github.com/filecoin-project/go-cbor-util"
-	"github.com/filecoin-project/go-padreader"
 	"github.com/filecoin-project/specs-actors/actors/abi"
 	sealing "github.com/filecoin-project/storage-fsm"
 
@@ -100,22 +99,18 @@ func (st *SectorBlocks) writeRef(dealID abi.DealID, sectorID abi.SectorNumber, o
 	return st.keys.Put(DealIDToDsKey(dealID), newRef) // TODO: batch somehow
 }
 
-func (st *SectorBlocks) AddPiece(ctx context.Context, size abi.UnpaddedPieceSize, r io.Reader, d sealing.DealInfo) (sectorID abi.SectorNumber, err error) {
-	// 里边复用sector的话 AllocatePiece、SealPiece 不能并发
-	st.addPieceLk.Lock()
-	defer st.addPieceLk.Unlock()
-
-	sectorID, pieceOffset, err := st.Miner.AllocatePieceAndSendIfNeeded(padreader.PaddedSize(uint64(size)))
+func (st *SectorBlocks) AddPiece(ctx context.Context, size abi.UnpaddedPieceSize, r io.Reader, d sealing.DealInfo) (abi.SectorNumber, error) {
+	sn, offset, err := st.Miner.AddPieceToAnySector(ctx, size, r, d)
 	if err != nil {
 		return 0, err
 	}
 
-	err = st.writeRef(d.DealID, sectorID, pieceOffset, size)
+	err = st.writeRef(d.DealID, sn, offset, size)
 	if err != nil {
-		return 0, err
+		return 0, xerrors.Errorf("writeRef: %w", err)
 	}
 
-	return sectorID, st.Miner.AddPiece(ctx, size, r, sectorID, d)
+	return sn, nil
 }
 
 func (st *SectorBlocks) List() (map[uint64][]api.SealedRef, error) {
